@@ -291,7 +291,8 @@ while true do
         m.setCursorPos(1, 5)
         m.write("Expired card")
       end
-      writeCenter(max_x, max_y / 2, "Wrong pin.")
+      writeCenter(max_x, max_y / 2, "Wrong pin")
+      writeCenter(max_x, max_y / 2, "Discard the receipt")
       if printerExists then
         p.setCursorPos(1, pmax_y - 1)
         p.write("Expired card")
