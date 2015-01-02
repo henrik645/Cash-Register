@@ -12,6 +12,7 @@ local sides = {"top", "bottom", "left", "right", "front", "back"}
 local broke = false
 local firstPage = true
 local colorExists = term.isColor()
+local pageStarted = false
 
 local amount = "";
 local product = "";
@@ -41,10 +42,11 @@ function writeError(message)
   writeCenter(max_x, max_y / 2 - 1, message)
   writeCenter(max_x, max_y / 2, "Discard the receipt")
   if printerExists then
-    p.setCursorPos(1, pmax_y - 1)
-    p.write(message)
-    p.setCursorPos(1, pmax_y)
-    p.write("RECEIPT NOT VALID")
+    if p.setCursorPos(1, pmax_y - 1) ~= nil then
+      p.write(message)
+      p.setCursorPos(1, pmax_y)
+      p.write("RECEIPT NOT VALID")
+    end
   end
 end
 
@@ -101,6 +103,7 @@ end
 
 while true do  
   firstPage = true
+  pageStarted = false
   term.clear();
   if monitorExists then
     m.clear()
@@ -137,11 +140,21 @@ while true do
       term.setCursorPos((math.floor(max_x / 2) - (8 / 2)), (math.floor(max_y) / 2 - 2));
       term.clearLine()
       amount = io.read();
-      if amount == "" then break end
+      if amount == "" then
+        if printerExists and pageStarted then
+          break
+        elseif printerExists == false then
+          break
+        end
+      end
     end
     
     if amount == "" then
-      break;
+      if pageStarted and printerExists then
+        break;
+      elseif printerExists == false then
+        break
+      end
     end
     
     term.setCursorPos((math.floor(max_x / 2) - (8 / 2)), (math.floor(max_y) / 2 + 1));
@@ -169,6 +182,7 @@ while true do
     
     if printerExists and firstPage then
       p.newPage()
+      pageStarted = true
       pmax_x, pmax_y = p.getPageSize() 
       p.setPageTitle(storeName)
       p.setCursorPos(1, 1)
@@ -274,7 +288,9 @@ while true do
     writeCenter(max_x, math.floor(max_y / 2) + 2, "Payment:");
     term.setCursorPos((max_x - #"Payment:") / 2, math.floor(max_y / 2) + 3);
     payment = io.read();
-    if payment == "" then break end
+    if payment == "" then
+      break
+    end
   end
   if payment == "" then
     cardPayment = true
@@ -324,14 +340,14 @@ while true do
     file.close()
     local message = "notconfirm"
     local argumentsString = textutils.serialize({card_number, subtotal, ownerCredit, card_pin})
-    modem.transmit(512, 512, "addMoney")
-    sleep(0.5)
-    modem.transmit(512, 512, argumentsString)
+    http.request("http://localhost/centraldator/transfer.php?account1=" .. card_number .. "&account2=" .. ownerCredit .. "&amount=" .. subtotal .. "&pin=" .. card_pin)
     timeout = os.startTimer(10)
-    event, side, channel, reply, message, distance = os.pullEvent()
+    event, url, message = os.pullEvent()
     if event == "timer" then
       writeError("No connection")
-    else
+    elseif event == "http_success" then
+      message = message.readAll()
+      print(message)
       if monitorExists then
         m.clear()
         m.setCursorPos(1, 1)
@@ -345,13 +361,19 @@ while true do
         writeError("An error occured")
       elseif message == "pin" then
         writeError("Wrong pin")
-      else
+      elseif message == "confirm" then
         if monitorExists then
           m.setCursorPos(1, 5)
           m.write("Remove card")
         end
         writeCenter(max_x, math.floor(max_y / 2), "Remove card from reader")
+      else
+        writeError("HTTP Error")
       end
+    elseif event == "http_failure" then
+      writeError("HTTP Failure")
+    else
+      writeError("HTTP Error")
     end
   else
     cardPayment = false
