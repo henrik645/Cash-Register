@@ -4,7 +4,7 @@ local mmax_x, mmax_y = 0, 0
 local currentLine = 3;
 local storeName = "Norman's Computers"
 local storeNameDiv = {"Norman's", "Computers"}
-local ownerCredit = "8052"
+local ownerCredit = "176326b7-474a-4125-bb70-52f3bd2921ff"
 local modemSide = "top"
 local line = 3
 local overriddenLetters = 0;
@@ -133,6 +133,13 @@ while true do
       term.setTextColor(colors.white)
       term.setCursorPos(1, 1)
       term.clear()
+      if printerExists and not firstPage then
+        p.setCursorPos(1, pmax_y - 1)
+        p.write("Purchase cancelled")
+        p.setCursorPos(1, pmax_y)
+        p.write("RECEIPT NOT VALID")
+        p.endPage()
+      end
       return
     end
   
@@ -291,8 +298,7 @@ while true do
         m.setCursorPos(1, 5)
         m.write("Expired card")
       end
-      writeCenter(max_x, max_y / 2, "Wrong pin")
-      writeCenter(max_x, max_y / 2, "Discard the receipt")
+      writeCenter(max_x, max_y / 2, "Wrong pin.")
       if printerExists then
         p.setCursorPos(1, pmax_y - 1)
         p.write("Expired card")
