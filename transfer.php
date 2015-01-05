@@ -42,4 +42,6 @@
     echo "confirm";
   }
   
+  $db->close();
+  
 ?>
