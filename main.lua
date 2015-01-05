@@ -11,6 +11,7 @@ local overriddenLetters = 0;
 local sides = {"top", "bottom", "left", "right", "front", "back"}
 local broke = false
 local firstPage = true
+local colorExists = term.isColor()
 
 local amount = "";
 local product = "";
@@ -32,8 +33,25 @@ function writeCenter(width, height, text, yDiff)
   term.write(text);
 end
 
-term.setBackgroundColor(colors.orange);
-term.setTextColor(colors.black);
+function writeError(message)
+  if monitorExists then
+    m.setCursorPos(1, 5)
+    m.write(message)
+  end
+  writeCenter(max_x, max_y / 2 - 1, message)
+  writeCenter(max_x, max_y / 2, "Discard the receipt")
+  if printerExists then
+    p.setCursorPos(1, pmax_y - 1)
+    p.write(message)
+    p.setCursorPos(1, pmax_y)
+    p.write("RECEIPT NOT VALID")
+  end
+end
+
+if colorExists then
+  term.setBackgroundColor(colors.orange);
+  term.setTextColor(colors.black);
+end
 
 term.clear()
 
@@ -268,18 +286,15 @@ while true do
     end
     event, side = os.pullEvent("disk")
     if not fs.exists("disk/card") then
-      if monitorExists then
-        m.setCursorPos(1, 3)
-        m.write("Not a card!")
-      end
-      writeCenter(max_x, max_y / 2, "Not a card!")
+      writeError("Not a card")
       if printerExists then
+        p.setCursorPos(1, pmax_y - 3)
+        p.write("Card payment")
         p.setCursorPos(1, pmax_y - 2)
-        p.write("Not a card")
-        p.setCursorPos(1, pmax_y)
-        p.write("RECEIPT NOT VALID")
+        p.write("Total: $" .. subtotal)
         p.endPage()
       end
+      sleep(2)
       term.setBackgroundColor(colors.black)
       term.setTextColor(colors.white)
       term.clear()
@@ -294,16 +309,13 @@ while true do
     local card_number = file.readLine()
     file.close()
     if not fs.exists("disk/pin") then
-      if monitorExists then
-        m.setCursorPos(1, 5)
-        m.write("Expired card")
-      end
-      writeCenter(max_x, max_y / 2, "Wrong pin.")
+      writeError("Expired card")
       if printerExists then
-        p.setCursorPos(1, pmax_y - 1)
-        p.write("Expired card")
-        p.setCursorPos(1, pmax_y)
-        p.write("RECEIPT NOT VALID")
+        p.setCursorPos(1, pmax_y - 3)
+        p.write("Card payment")
+        p.setCursorPos(1, pmax_y - 2)
+        p.write("Total: $" .. subtotal)
+        p.endPage()
       end
       break
     end
@@ -318,23 +330,7 @@ while true do
     timeout = os.startTimer(10)
     event, side, channel, reply, message, distance = os.pullEvent()
     if event == "timer" then
-      if monitorExists then
-        m.clear()
-        m.setCursorPos(1, 2)
-        m.write("No connection")
-        m.setCursorPos(1, 4)
-        m.write("Remove Card")
-      end
-      
-      writeCenter(max_x, max_y / 2 - 1, "No connection")
-      writeCenter(max_x, max_y / 2, "Discard the receipt")
-      
-      if printerExists then
-        p.setCursorPos(1, pmax_y - 1)
-        p.write("No connection")
-        p.setCursorPos(1, pmax_y)
-        p.write("RECEIPT NOT VALID")
-      end
+      writeError("No connection")
     else
       if monitorExists then
         m.clear()
@@ -344,46 +340,11 @@ while true do
         m.write("Card payment")
       end
       if message == "nomoney" then
-        if monitorExists then
-          m.setCursorPos(1, 5)
-          m.write("Not enough money")
-        end
-        writeCenter(max_x, max_y / 2 - 1, "Not enough money")
-        writeCenter(max_x, max_y / 2, "Discard the receipt")
-        if printerExists then
-          p.setCursorPos(1, pmax_y - 1)
-          p.write("Not enough funds")
-          p.setCursorPos(1, pmax_y)
-          p.write("RECEIPT NOT VALID")
-        end
+        writeError("Not enough money")
       elseif message == "error" then
-        if monitorExists then
-          m.setCursorPos(1, 4)
-          m.write("An error occured")
-          m.setCursorPos(1, 5)
-          m.write("Please try again")
-        end
-        writeCenter(max_x, max_y / 2 - 1, "An error occured")
-        writeCenter(max_x, max_y / 2, "Discard the receipt")
-        if printerExists then
-          p.setCursorPos(1, pmax_y - 1)
-          p.write("An error occured")
-          p.setCursorPos(1, pmax_y)
-          p.write("RECEIPT NOT VALID")
-        end
+        writeError("An error occured")
       elseif message == "pin" then
-        if monitorExists then
-          m.setCursorPos(1, 5)
-          m.write("Expired card")
-        end
-        writeCenter(max_x, max_y / 2 - 1, "Wrong pin.")
-        writeCenter(max_x, max_y / 2, "Discard the receipt")
-        if printerExists then
-          p.setCursorPos(1, pmax_y - 1)
-          p.write("Expired card")
-          p.setCursorPos(1, pmax_y)
-          p.write("RECEIPT NOT VALID")
-        end
+        writeError("Wrong pin")
       else
         if monitorExists then
           m.setCursorPos(1, 5)
