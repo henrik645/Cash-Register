@@ -13,6 +13,7 @@ local broke = false
 local firstPage = true
 local colorExists = term.isColor()
 local pageStarted = false
+local serverURL = "http://henrikvester.nu/centraldator/transfer.php"
 
 local amount = "";
 local product = "";
@@ -340,7 +341,7 @@ while true do
     file.close()
     local message = "notconfirm"
     local argumentsString = textutils.serialize({card_number, subtotal, ownerCredit, card_pin})
-    http.request("http://localhost/centraldator/transfer.php?account1=" .. card_number .. "&account2=" .. ownerCredit .. "&amount=" .. subtotal .. "&pin=" .. card_pin)
+    http.request(serverURL .. "?account1=" .. card_number .. "&account2=" .. ownerCredit .. "&amount=" .. subtotal .. "&pin=" .. card_pin)
     timeout = os.startTimer(10)
     event, url, message = os.pullEvent()
     if event == "timer" then
