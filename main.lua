@@ -347,7 +347,6 @@ while true do
       writeError("No connection")
     elseif event == "http_success" then
       message = message.readAll()
-      print(message)
       if monitorExists then
         m.clear()
         m.setCursorPos(1, 1)
