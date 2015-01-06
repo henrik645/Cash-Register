@@ -14,6 +14,7 @@ local firstPage = true
 local colorExists = term.isColor()
 local pageStarted = false
 local serverURL = "http://henrikvester.nu/centraldator/transfer.php"
+local sideValid
 
 local amount = "";
 local product = "";
@@ -25,8 +26,6 @@ local payment = "";
 local change = 0;
 
 modem = peripheral.wrap(modemSide)
-modem.transmit(23, 1, "OPEN")
-
 modem.open(512)
 
 function writeCenter(width, height, text, yDiff)
@@ -56,51 +55,92 @@ if colorExists then
   term.setTextColor(colors.black);
 end
 
-term.clear()
-
-writeCenter(max_x, math.floor(max_y / 2), "Printer: ")
-side = io.read() 
-if side == "" then
-  printerExists = false
-else
-  for i = 1, 6 do
-    if string.lower(side) == sides[i] then
-      sideMatched = true
-    end
-  end
-  if sideMatched then
-    p = peripheral.wrap(string.lower(side))
-    sideMatched = false
-    printerExists = true
-  else
-    term.clear()
-    writeCenter(max_x, math.floor(max_y / 2), "Printer: ")
-    side = io.read()
-  end
-end
-
-term.clear()
-writeCenter(max_x, math.floor(max_y / 2), "Monitor: ")
-side = io.read()
-if side == "" then
+sideValid = false
+m = peripheral.find("monitor")
+if m == nil then
   monitorExists = false
 else
-  for i = 1, 6 do
-    if string.lower(side) == sides[i] then
-      sideMatched = true
-    end
-  end
-  if sideMatched then
-    m = peripheral.wrap(string.lower(side))
-    sideMatched = false
-    mmax_x, mmax_y = m.getSize()
-    monitorExists = true
-  else
+  monitorExists = true
+  mmax_x, mmax_y = m.getSize()
+end
+
+p = peripheral.find("printer")
+if p == nil then
+  printerExists = false
+else
+  printerExists = true
+end
+
+if printerExists then
+  if p.getInkLevel() == 0 then
     term.clear()
-    writeCenter(max_x, math.floor(max_y / 2), "Monitor: ")
-    side = io.read()
+    writeCenter(max_x, max_y / 2, "No ink in the printer!")
+    sleep(2)
+    term.setBackgroundColor(colors.black)
+    term.setTextColor(colors.white)
+    term.clear()
+    term.setCursorPos(1, 1)
+    return
+  elseif p.getPaperLevel() == 0 then
+    term.clear()
+    writeCenter(max_x, max_y / 2, "No paper in the printer!")
+    sleep(2)
+    term.setBackgroundColor(colors.black)
+    term.setTextColor(colors.white)
+    term.clear()
+    term.setCursorPos(1, 1)
+    return
   end
 end
+
+--[[
+while sideValid == false do
+  term.clear()
+  writeCenter(max_x, math.floor(max_y / 2), "Printer: ")
+  side = io.read()
+  if side == "" then
+    printerExists = false
+    sideValid = true
+  else
+    for i = 1, 6 do
+      if string.lower(side) == sides[i] then
+        sideMatched = true
+      end
+    end
+    if sideMatched then
+      p = peripheral.wrap(string.lower(side))
+      sideMatched = false
+      printerExists = true
+      sideValid = true
+    end
+  end
+end
+
+sideValid = false
+while sideValid == false do
+  term.clear()
+  writeCenter(max_x, math.floor(max_y / 2), "Monitor: ")
+  side = io.read()
+  if side == "" then
+    monitorExists = false
+    sideValid = true
+  else
+    for i = 1, 6 do
+      if string.lower(side) == sides[i] then
+        sideMatched = true
+      end
+    end
+    if sideMatched then
+      m = peripheral.wrap(string.lower(side))
+      sideMatched = false
+      mmax_x, mmax_y = m.getSize()
+      monitorExists = true
+      sideValid = true
+    end
+  end
+end
+
+]]
 
 while true do  
   firstPage = true
@@ -142,37 +182,54 @@ while true do
       term.clearLine()
       amount = io.read();
       if amount == "" then
-        if printerExists and pageStarted then
-          break
-        elseif printerExists == false then
+        if (printerExists and pageStarted) or (not printerExists) then
           break
         end
       end
     end
     
     if amount == "" then
-      if pageStarted and printerExists then
+      if (pageStarted and printerExists) or (not printerExists) then
         break;
-      elseif printerExists == false then
-        break
       end
     end
     
-    term.setCursorPos((math.floor(max_x / 2) - (8 / 2)), (math.floor(max_y) / 2 + 1));
-    product = io.read();
-    if product == "" then
-      term.setBackgroundColor(colors.black)
-      term.setTextColor(colors.white)
-      term.setCursorPos(1, 1)
-      term.clear()
-      if printerExists and not firstPage then
-        p.setCursorPos(1, pmax_y - 1)
-        p.write("Purchase cancelled")
-        p.setCursorPos(1, pmax_y)
-        p.write("RECEIPT NOT VALID")
-        p.endPage()
+    while product == "" do
+      term.setCursorPos((math.floor(max_x / 2) - (8 / 2)), (math.floor(max_y) / 2 + 1));
+      product = io.read();
+      if product == "" then
+        term.clear()
+        writeCenter(max_x, max_y / 2, "Exit program? ")
+        local doExit = io.read()
+        doExit = string.lower(doExit)
+        if doExit == "y" or doExit == "yes" then
+          term.setBackgroundColor(colors.black)
+          term.setTextColor(colors.white)
+          term.setCursorPos(1, 1)
+          term.clear()
+          if printerExists and not firstPage then
+            p.setCursorPos(1, pmax_y - 1)
+            p.write("Purchase cancelled")
+            p.setCursorPos(1, pmax_y)
+            p.write("RECEIPT NOT VALID")
+            p.endPage()
+          end
+          return
+        else
+          term.clear()
+          writeCenter(max_x, math.floor(max_y / 2) - 3, "Amount: ");
+          writeCenter(max_x, math.floor(max_y / 2) + 0, "Product:");
+          writeCenter(max_x, math.floor(max_y / 2) + 3, "Price:  ");
+          term.setCursorPos((max_x - 8) / 2, max_y / 2 - 2)
+          term.write(amount)
+          term.setCursorPos((math.floor(max_x / 2) - (8 / 2)), math.floor(max_y) / 2 + 6);
+          term.write(lastProduct);
+          term.setCursorPos((math.floor(max_x / 2) - (8 / 2)), math.floor(max_y) / 2 + 7);
+          term.write(lastProductA);
+          term.setCursorPos((math.floor(max_x / 2) - (8 / 2)), math.floor(max_y) / 2 + 9);
+          term.write("$" .. subtotal);
+        end
       end
-      return
     end
   
     while tonumber(price) == nil do
@@ -282,7 +339,7 @@ while true do
     m.setCursorPos(1, 1)
     m.write("Total: $" .. subtotal)
   end
-
+  payment = nil
   while tonumber(payment) == nil do
     term.setCursorPos((max_x - #"Payment:") / 2, math.floor(max_y / 2) + 3);
     term.clearLine()
@@ -302,78 +359,72 @@ while true do
       m.write("Insert Card")
     end
     event, side = os.pullEvent("disk")
-    if not fs.exists("disk/card") then
+    if not fs.exists("disk/card") and not fs.exists("disk/pin") then
       writeError("Not a card")
       if printerExists then
         p.setCursorPos(1, pmax_y - 3)
         p.write("Card payment")
         p.setCursorPos(1, pmax_y - 2)
         p.write("Total: $" .. subtotal)
-        p.endPage()
       end
-      sleep(2)
-      term.setBackgroundColor(colors.black)
-      term.setTextColor(colors.white)
-      term.clear()
-      term.setCursorPos(1, 1)
-      break
-    end
-    file = fs.open("disk/card", "r")
-    if monitorExists then
-      m.setCursorPos(1, 3)
-      m.write("Do not take it out")
-    end
-    local card_number = file.readLine()
-    file.close()
-    if not fs.exists("disk/pin") then
-      writeError("Expired card")
-      if printerExists then
-        p.setCursorPos(1, pmax_y - 3)
-        p.write("Card payment")
-        p.setCursorPos(1, pmax_y - 2)
-        p.write("Total: $" .. subtotal)
-        p.endPage()
-      end
-      break
-    end
-    file = fs.open("disk/pin", "r")
-    local card_pin = file.readLine()
-    file.close()
-    local message = "notconfirm"
-    local argumentsString = textutils.serialize({card_number, subtotal, ownerCredit, card_pin})
-    http.request(serverURL .. "?account1=" .. card_number .. "&account2=" .. ownerCredit .. "&amount=" .. subtotal .. "&pin=" .. card_pin)
-    timeout = os.startTimer(10)
-    event, url, message = os.pullEvent()
-    if event == "timer" then
-      writeError("No connection")
-    elseif event == "http_success" then
-      message = message.readAll()
+    else
+      file = fs.open("disk/card", "r")
       if monitorExists then
-        m.clear()
-        m.setCursorPos(1, 1)
-        m.write("Total: $" .. subtotal)
         m.setCursorPos(1, 3)
-        m.write("Card payment")
+        m.write("Do not take it out")
       end
-      if message == "nomoney" then
-        writeError("Not enough money")
-      elseif message == "error" then
-        writeError("An error occured")
-      elseif message == "pin" then
-        writeError("Wrong pin")
-      elseif message == "confirm" then
-        if monitorExists then
-          m.setCursorPos(1, 5)
-          m.write("Remove card")
+      local card_number = file.readLine()
+      file.close()
+      if not fs.exists("disk/pin") then
+        writeError("Expired card")
+        if printerExists then
+          p.setCursorPos(1, pmax_y - 3)
+          p.write("Card payment")
+          p.setCursorPos(1, pmax_y - 2)
+          p.write("Total: $" .. subtotal)
+          p.endPage()
         end
-        writeCenter(max_x, math.floor(max_y / 2), "Remove card from reader")
+        break
+      end
+      file = fs.open("disk/pin", "r")
+      local card_pin = file.readLine()
+      file.close()
+      local message = "notconfirm"
+      local argumentsString = textutils.serialize({card_number, subtotal, ownerCredit, card_pin, ownerPin})
+      http.request(serverURL .. "?account1=" .. card_number .. "&account2=" .. ownerCredit .. "&amount=" .. subtotal .. "&pin=" .. card_pin)
+      timeout = os.startTimer(10)
+      event, url, message = os.pullEvent()
+      if event == "timer" then
+        writeError("No connection")
+      elseif event == "http_success" then
+        message = message.readAll()
+        if monitorExists then
+          m.clear()
+          m.setCursorPos(1, 1)
+          m.write("Total: $" .. subtotal)
+          m.setCursorPos(1, 3)
+          m.write("Card payment")
+        end
+        if message == "nomoney" then
+          writeError("Not enough money")
+        elseif message == "error" then
+          writeError("An error occured")
+        elseif message == "pin" then
+          writeError("Wrong pin")
+        elseif message == "confirm" then
+          if monitorExists then
+            m.setCursorPos(1, 5)
+            m.write("Remove card")
+          end
+          writeCenter(max_x, math.floor(max_y / 2), "Remove card from reader")
+        else
+          writeError("HTTP Error")
+        end
+      elseif event == "http_failure" then
+        writeError("HTTP Failure")
       else
         writeError("HTTP Error")
       end
-    elseif event == "http_failure" then
-      writeError("HTTP Failure")
-    else
-      writeError("HTTP Error")
     end
   else
     cardPayment = false
@@ -385,7 +436,7 @@ while true do
     change = 0
   end
   
-  writeCenter(max_x, math.floor(max_y / 2) + 5, "Change: " .. tostring(change))
+  writeCenter(max_x, math.floor(max_y / 2) + 5, "Change: $" .. tostring(change))
   
   if monitorExists and cardPayment == false then
     m.setCursorPos(1, 2)
