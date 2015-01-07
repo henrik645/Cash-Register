@@ -28,7 +28,10 @@
   } elseif($pin != $cardPin["pin"]) {
     echo "pin";
   } elseif($account1 != $account2) {
-    $amount = abs($amount);
+    if ($amount < 0) {
+      echo "error";
+      die();
+    }
     $statement = $db->prepare('UPDATE accounts SET balance=:newAmount WHERE UUID=:account1');
     $statement->bindValue(':newAmount', $oldBalance1["balance"] - $amount);
     $statement->bindValue(':account1', $account1);
