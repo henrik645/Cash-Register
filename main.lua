@@ -26,6 +26,8 @@ local payment = "";
 local change = 0;
 
 modem = peripheral.wrap(modemSide)
+modem.transmit(23, 1, "OPEN")
+
 modem.open(512)
 
 function writeCenter(width, height, text, yDiff)
@@ -421,9 +423,9 @@ while true do
           writeError("HTTP Error")
         end
       elseif event == "http_failure" then
-        writeError("HTTP Failure")
-      else
         writeError("HTTP Error")
+      else
+        writeError("An error occured")
       end
     end
   else
