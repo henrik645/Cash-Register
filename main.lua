@@ -15,6 +15,8 @@ local colorExists = term.isColor()
 local pageStarted = false
 local serverURL = "http://henrikvester.nu/centraldator/transfer.php"
 local sideValid
+local floppyDisk = true
+local cardSide = "left"
 
 local amount = "";
 local product = "";
@@ -71,6 +73,10 @@ if p == nil then
   printerExists = false
 else
   printerExists = true
+end
+
+if floppyDisk == false then
+  card = peripheral.wrap(cardSide)
 end
 
 if printerExists then
@@ -360,73 +366,86 @@ while true do
       m.setCursorPos(1, 3)
       m.write("Insert Card")
     end
-    event, side = os.pullEvent("disk")
-    if not fs.exists("disk/card") and not fs.exists("disk/pin") then
-      writeError("Not a card")
-      if printerExists then
-        p.setCursorPos(1, pmax_y - 3)
-        p.write("Card payment")
-        p.setCursorPos(1, pmax_y - 2)
-        p.write("Total: $" .. subtotal)
-      end
-    else
-      file = fs.open("disk/card", "r")
-      if monitorExists then
-        m.setCursorPos(1, 3)
-        m.write("Do not take it out")
-      end
-      local card_number = file.readLine()
-      file.close()
-      if not fs.exists("disk/pin") then
-        writeError("Expired card")
+    if floppyDisk then
+      event, side = os.pullEvent("disk")
+    end
+    if (not fs.exists("disk/card")) then
+      if floppyDisk then
+        writeError("Not a card")
         if printerExists then
           p.setCursorPos(1, pmax_y - 3)
           p.write("Card payment")
           p.setCursorPos(1, pmax_y - 2)
           p.write("Total: $" .. subtotal)
-          p.endPage()
         end
-        break
       end
-      file = fs.open("disk/pin", "r")
-      local card_pin = file.readLine()
-      file.close()
-      local message = "notconfirm"
-      local argumentsString = textutils.serialize({card_number, subtotal, ownerCredit, card_pin, ownerPin})
-      http.request(serverURL .. "?account1=" .. card_number .. "&account2=" .. ownerCredit .. "&amount=" .. subtotal .. "&pin=" .. card_pin)
-      timeout = os.startTimer(10)
-      event, url, message = os.pullEvent()
-      if event == "timer" then
-        writeError("No connection")
-      elseif event == "http_success" then
-        message = message.readAll()
+    else
+      if floppyDisk then
+        file = fs.open("disk/card", "r")
         if monitorExists then
-          m.clear()
-          m.setCursorPos(1, 1)
-          m.write("Total: $" .. subtotal)
           m.setCursorPos(1, 3)
-          m.write("Card payment")
+          m.write("Do not take it out")
         end
-        if message == "nomoney" then
-          writeError("Not enough money")
-        elseif message == "error" then
-          writeError("An error occured")
-        elseif message == "pin" then
-          writeError("Wrong pin")
-        elseif message == "confirm" then
-          if monitorExists then
-            m.setCursorPos(1, 5)
-            m.write("Remove card")
+        local card_number = file.readLine()
+        file.close()
+        if not fs.exists("disk/pin") then
+          writeError("Expired card")
+          if printerExists then
+            p.setCursorPos(1, pmax_y - 3)
+            p.write("Card payment")
+            p.setCursorPos(1, pmax_y - 2)
+            p.write("Total: $" .. subtotal)
+            p.endPage()
           end
-          writeCenter(max_x, math.floor(max_y / 2), "Remove card from reader")
-        else
-          writeError("HTTP Error")
+          break
         end
-      elseif event == "http_failure" then
-        writeError("HTTP Error")
-      else
-        writeError("An error occured")
+        file = fs.open("disk/pin", "r")
+        local card_pin = file.readLine()
+        file.close()
       end
+    end
+    if floppyDisk == false then
+      card.setInsertCardLight(true)
+      event, cardMessage = os.pullEvent("mag_swipe")
+      card.setInsertCardLight(false)
+      card_pin = string.sub(cardMessage, 38)
+      card_number = string.sub(cardMessage, 1, 36)
+    end
+    local message = "notconfirm"
+    local argumentsString = textutils.serialize({card_number, subtotal, ownerCredit, card_pin, ownerPin})
+    http.request(serverURL .. "?account1=" .. card_number .. "&account2=" .. ownerCredit .. "&amount=" .. subtotal .. "&pin=" .. card_pin)
+    timeout = os.startTimer(10)
+    event, url, message = os.pullEvent()
+    if event == "timer" then
+      writeError("No connection")
+    elseif event == "http_success" then
+      message = message.readAll()
+      if monitorExists then
+        m.clear()
+        m.setCursorPos(1, 1)
+        m.write("Total: $" .. subtotal)
+        m.setCursorPos(1, 3)
+        m.write("Card payment")
+      end
+      if message == "nomoney" then
+        writeError("Not enough money")
+      elseif message == "error" then
+        writeError("An error occured")
+      elseif message == "pin" then
+        writeError("Wrong pin")
+      elseif message == "confirm" then
+        if monitorExists then
+          m.setCursorPos(1, 5)
+          m.write("Remove card")
+        end
+        writeCenter(max_x, math.floor(max_y / 2), "Remove card from reader")
+      else
+        writeError("HTTP Error")
+      end
+    elseif event == "http_failure" then
+      writeError("HTTP Error")
+    else
+      writeError("An error occured")
     end
   else
     cardPayment = false
