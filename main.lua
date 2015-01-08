@@ -215,6 +215,7 @@ while true do
           term.setTextColor(colors.white)
           term.setCursorPos(1, 1)
           term.clear()
+          shell.run("startup")
           if printerExists and not firstPage then
             p.setCursorPos(1, pmax_y - 1)
             p.write("Purchase cancelled")
@@ -386,7 +387,7 @@ while true do
           m.setCursorPos(1, 3)
           m.write("Do not take it out")
         end
-        local card_number = file.readLine()
+        card_number = file.readLine()
         file.close()
         if not fs.exists("disk/pin") then
           writeError("Expired card")
@@ -400,7 +401,7 @@ while true do
           break
         end
         file = fs.open("disk/pin", "r")
-        local card_pin = file.readLine()
+        card_pin = file.readLine()
         file.close()
       end
     end
